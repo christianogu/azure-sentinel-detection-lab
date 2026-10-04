@@ -49,3 +49,23 @@ resource "azurerm_monitor_diagnostic_setting" "activity" {
     category = "Alert"
   }
 }
+resource "azurerm_sentinel_alert_rule_scheduled" "storage_config_change" {
+  name                       = "storage-config-change"
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.main.workspace_id
+  display_name               = "Storage account configuration changed"
+  description                = "A storage account's settings were modified. Could indicate an attempt to weaken firewall, key, or encryption settings."
+  severity                   = "Medium"
+  query_frequency            = "PT10M"
+  query_period               = "PT10M"
+  trigger_operator           = "GreaterThan"
+  trigger_threshold          = 0
+  tactics                    = ["DefenseEvasion"]
+  techniques                 = ["T1562"]
+
+  query = <<-QUERY
+    AzureActivity
+    | where OperationNameValue =~ "MICROSOFT.STORAGE/STORAGEACCOUNTS/WRITE"
+    | where ActivityStatusValue =~ "Success"
+    | project TimeGenerated, Caller, CallerIpAddress, ResourceGroup, _ResourceId
+  QUERY
+}
